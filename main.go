@@ -71,7 +71,7 @@ func main() {
 }
 
 type SyslogServer struct {
-	server   *net.UDPConn
+	Conn   *net.UDPConn
 	Addr     string
 	Messages chan []byte
 }
@@ -87,7 +87,7 @@ func NewSyslogServer(addr string) *SyslogServer {
 }
 
 func (s *SyslogServer) Close() error {
-	return s.server.Close()
+	return s.Conn.Close()
 }
 
 func (s *SyslogServer) Run() {
@@ -96,27 +96,27 @@ func (s *SyslogServer) Run() {
 		logger.Fatalf("Error resolving UDP address: %s", err)
 	}
 
-	s.server, err = net.ListenUDP("udp", udpAddr)
+	s.conn, err = net.ListenUDP("udp", udpAddr)
 	if err != nil {
 		logger.Fatalf("Error listening on UDP address: %s", err)
 	}
 
 	logger.Printf("Syslog server listening on %s", s.Addr)
 
-	err = s.handleConnections()
+	err = s.handleMessages()
 	if err != nil {
 		logger.Fatalf("Error handling connections: %s", err)
 	}
 }
 
-func (s *SyslogServer) handleConnections() error {
+func (s *SyslogServer) handleMessages() error {
 	var err error
 	for {
-		scanner := bufio.NewScanner(s.server)
+		scanner := bufio.NewScanner(s.Conn)
 		for scanner.Scan() {
 			message := scanner.Text()
 			log.Println("Received message:", message)
-			go s.handleConnection(message)
+			go s.handleMessage(message)
 		}
 
 		if err := scanner.Err(); err != nil {
@@ -126,7 +126,7 @@ func (s *SyslogServer) handleConnections() error {
 	return err
 }
 
-func (s *SyslogServer) handleConnection(message string) {
+func (s *SyslogServer) handleMessage(message string) {
 	parsedMessage, err := parseSyslogMessage(message)
 	if err != nil {
 		log.Println("Error parsing syslog message:", err)
